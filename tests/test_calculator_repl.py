@@ -176,13 +176,17 @@ def test_calculator_clear_command(prompt_values, capsys):
     with patch("builtins.input", side_effect=prompt_values):
         calculator()
 
-    assert "History cleared." in capsys.readouterr().out
+    assert "Calculator reset: cleared current-session history" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
     "command, expected",
-    [("undo", "Nothing to undo."), ("redo", "Nothing to redo."),
-     ("save", "History saved."), ("load", "History loaded.")],
+    [
+        ("undo", "Undo: no calculation to remove."),
+        ("redo", "Redo: no undone calculation to restore."),
+        ("save", "Saved 0 calculation(s) to"),
+        ("load", "Load: no calculations found in previous session CSV files."),
+    ],
 )
 def test_calculator_state_commands(command, expected, capsys):
     with patch("builtins.input", side_effect=[command, "exit"]):
@@ -225,19 +229,19 @@ def test_calculator_reports_save_errors(monkeypatch, capsys):
     with patch("builtins.input", side_effect=["save", "exit"]):
         calculator()
 
-    assert "Error: save failed" in capsys.readouterr().out
+    assert "Save failed: save failed" in capsys.readouterr().out
 
 
 def test_calculator_reports_load_errors(monkeypatch, capsys):
     monkeypatch.setattr(
         Calculator,
-        "load",
+        "saved_entries",
         lambda self: (_ for _ in ()).throw(ConfigurationError("load failed")),
     )
     with patch("builtins.input", side_effect=["load", "exit"]):
         calculator()
 
-    assert "Error: load failed" in capsys.readouterr().out
+    assert "Load failed: load failed" in capsys.readouterr().out
 
 
 def test_calculator_reports_session_save_error(monkeypatch, capsys):
@@ -250,3 +254,96 @@ def test_calculator_reports_session_save_error(monkeypatch, capsys):
         calculator()
 
     assert "Error saving session history: session save failed" in capsys.readouterr().out
+
+
+def test_undo_and_redo_report_the_entry(capsys):
+    with patch(
+        "builtins.input",
+        side_effect=["2", "+", "3", "undo", "redo", "exit"],
+    ):
+        calculator()
+
+    output = capsys.readouterr().out
+    assert "Undo: removed 2.0 + 3.0 = 5.0 from history." in output
+    assert "Redo: restored 2.0 + 3.0 = 5.0 to history." in output
+
+
+def test_load_lists_and_imports_selected_previous_session_entry(
+    capsys, monkeypatch, tmp_path
+):
+    monkeypatch.setenv("CALCULATOR_HISTORY_FILE", str(tmp_path / "history.csv"))
+    pd.DataFrame(
+        [[7, "^", 2, 49], [9, "root", 2, 3]],
+        columns=["first_operand", "operator", "second_operand", "result"],
+    ).to_csv(tmp_path / "history_previous.csv", index=False)
+    with patch("builtins.input", side_effect=["load", "2", "history", "exit"]):
+        calculator()
+
+    output = capsys.readouterr().out
+    assert "[1] 7 ^ 2 = 49" in output
+    assert "[2] 9 root 2 = 3" in output
+    assert "Loaded calculation into this session: 9.0 root 2.0 = 3.0." in output
+    assert "1. 9.0 root 2.0 = 3.0" in output
+
+
+@pytest.mark.parametrize("selection", ["abc", "0", "8"])
+def test_load_reports_invalid_selection(capsys, monkeypatch, tmp_path, selection):
+    monkeypatch.setenv("CALCULATOR_HISTORY_FILE", str(tmp_path / "history.csv"))
+    pd.DataFrame(
+        [[2, "+", 3, 5]],
+        columns=["first_operand", "operator", "second_operand", "result"],
+    ).to_csv(tmp_path / "history_previous.csv", index=False)
+    with patch("builtins.input", side_effect=["load", selection, "exit"]):
+        calculator()
+
+    assert "Load failed: Choose a listed saved-entry number." in capsys.readouterr().out
+
+
+def test_load_can_be_cancelled(capsys, monkeypatch, tmp_path):
+    monkeypatch.setenv("CALCULATOR_HISTORY_FILE", str(tmp_path / "history.csv"))
+    pd.DataFrame(
+        [[2, "+", 3, 5]],
+        columns=["first_operand", "operator", "second_operand", "result"],
+    ).to_csv(tmp_path / "history_previous.csv", index=False)
+    with patch("builtins.input", side_effect=["load", "cancel", "history", "exit"]):
+        calculator()
+
+    output = capsys.readouterr().out
+    assert "Load cancelled; current history is unchanged." in output
+    assert "No calculations yet." in output
+
+
+@pytest.mark.parametrize(
+    "command, method_name, expected_message",
+    [
+        ("clear", "clear", "Clear failed: history unavailable"),
+        ("undo", "undo", "Undo failed: history unavailable"),
+        ("redo", "redo", "Redo failed: history unavailable"),
+    ],
+)
+def test_state_commands_report_errors(
+    command, method_name, expected_message, monkeypatch, capsys
+):
+    monkeypatch.setattr(
+        Calculator,
+        method_name,
+        lambda self: (_ for _ in ()).throw(HistoryError("history unavailable")),
+    )
+    with patch("builtins.input", side_effect=[command, "exit"]):
+        calculator()
+
+    assert expected_message in capsys.readouterr().out
+
+
+def test_load_selection_can_be_interrupted(capsys, monkeypatch, tmp_path):
+    monkeypatch.setenv("CALCULATOR_HISTORY_FILE", str(tmp_path / "history.csv"))
+    pd.DataFrame(
+        [[2, "+", 3, 5]],
+        columns=["first_operand", "operator", "second_operand", "result"],
+    ).to_csv(tmp_path / "history_previous.csv", index=False)
+    with patch("builtins.input", side_effect=["load", KeyboardInterrupt()]):
+        calculator()
+
+    output = capsys.readouterr().out
+    assert "Input interrupted. Exiting calculator." in output
+    assert "Session history saved to:" in output

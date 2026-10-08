@@ -3,6 +3,7 @@
 from .calculator_config import CalculatorConfig
 from .calculator_memento import CalculatorMemento
 from .calculation import CalculationFactory
+from .exceptions import InvalidInputError
 from .history import CalculationHistory, CalculationSubject
 
 
@@ -41,11 +42,17 @@ class Calculator:
         """Return formatted history for the command-line interface."""
         return self.history.format_entries()
 
+    def history_entries(self):
+        """Return current-session calculation records."""
+        return self.history.get_all()
+
     def clear(self):
-        """Clear history as an undoable state change."""
-        self._undo_stack.append(self._create_memento())
+        """Clear history and reset the undo/redo state completely."""
+        removed_count = len(self.history.get_all())
+        self._undo_stack.clear()
         self._redo_stack.clear()
         self.history.clear()
+        return removed_count
 
     def undo(self):
         """Restore the previous state, if one is available."""
@@ -64,8 +71,31 @@ class Calculator:
         return True
 
     def save(self):
-        """Persist history using its observer-managed DataFrame."""
+        """Persist current history and return its path and entry count."""
         self.history.save()
+        return self.session_history_file, len(self.history.get_all())
+
+    def saved_entries(self):
+        """List calculations from previous session CSV files."""
+        return self.history.get_saved_entries(self.config.history_file)
+
+    def load_entry(self, entry_number):
+        """Copy a selected archived calculation into the current session."""
+        entries = self.saved_entries()
+        if not isinstance(entry_number, int) or not 1 <= entry_number <= len(entries):
+            raise InvalidInputError("Choose a listed saved-entry number.")
+
+        entry = entries[entry_number - 1]
+        calculation = CalculationFactory.create(
+            entry["operator"],
+            float(entry["first_operand"]),
+            float(entry["second_operand"]),
+        )
+        calculation.perform()
+        self._undo_stack.append(self._create_memento())
+        self._redo_stack.clear()
+        self._events.notify(calculation)
+        return calculation
 
     def close(self):
         """Save this session's CSV and return its path."""

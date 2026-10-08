@@ -53,15 +53,16 @@ def test_calculator_new_calculation_clears_redo_stack(tmp_path):
     assert "3 * 4 = 12" in calculator.history_text()
 
 
-def test_calculator_clear_is_undoable(tmp_path):
+def test_calculator_clear_resets_history_and_undo_redo(tmp_path):
     calculator = make_calculator(tmp_path, auto_save=False)
     calculator.calculate("+", 2, 3)
 
-    calculator.clear()
+    removed_count = calculator.clear()
 
+    assert removed_count == 1
     assert calculator.history_text() == "No calculations yet."
-    assert calculator.undo() is True
-    assert "2 + 3 = 5" in calculator.history_text()
+    assert calculator.undo() is False
+    assert calculator.redo() is False
 
 
 def test_calculator_saves_and_loads_history(tmp_path):
@@ -103,6 +104,37 @@ def test_calculator_load_missing_file_keeps_empty_history(tmp_path):
 
     assert calculator.history_text() == "No calculations yet."
     assert calculator.undo() is True
+
+
+def test_calculator_loads_selected_entry_from_previous_session(tmp_path):
+    archive_file = tmp_path / "history_previous.csv"
+    pd.DataFrame(
+        [[4, "*", 5, 20], [8, "+", 1, 9]],
+        columns=["first_operand", "operator", "second_operand", "result"],
+    ).to_csv(archive_file, index=False)
+    calculator = make_calculator(tmp_path, auto_save=False)
+
+    loaded = calculator.load_entry(2)
+
+    assert str(loaded) == "8.0 + 1.0 = 9.0"
+    assert calculator.history_entries()[-1] == {
+        "first_operand": 8.0,
+        "operator": "+",
+        "second_operand": 1.0,
+        "result": 9.0,
+    }
+
+
+@pytest.mark.parametrize("entry_number", [0, 2, "1"])
+def test_calculator_rejects_invalid_saved_entry_number(tmp_path, entry_number):
+    pd.DataFrame(
+        [[4, "*", 5, 20]],
+        columns=["first_operand", "operator", "second_operand", "result"],
+    ).to_csv(tmp_path / "history_previous.csv", index=False)
+    calculator = make_calculator(tmp_path, auto_save=False)
+
+    with pytest.raises(ValueError, match="Choose a listed saved-entry number"):
+        calculator.load_entry(entry_number)
 
 
 def test_calculator_configuration_failure_is_propagated(monkeypatch):

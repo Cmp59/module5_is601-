@@ -7,7 +7,10 @@ from .input_validators import normalize_command, parse_number
 HELP_TEXT = (
     "Commands: help, history, clear, undo, redo, save, load, exit (q also exits).\n"
     "Operations: +, -, *, /, ^, root.\n"
-    "For root, enter the radicand first and the root degree second."
+    "For root, enter the radicand first and the root degree second.\n"
+    "clear deletes this session's history and resets undo/redo.\n"
+    "undo removes the last entry; redo restores the last undone entry.\n"
+    "save writes this session; load lists earlier sessions and imports a selected entry."
 )
 
 
@@ -24,38 +27,100 @@ def _handle_command(user_input, calculator):
     """Handle a REPL command, returning its control-flow action."""
     command = normalize_command(user_input)
     if command in ("q", "exit"):
+        print("Exiting calculator.")
         return "exit"
     if command == "help":
+        print("Available commands and operations:")
         print(HELP_TEXT)
         return "handled"
     if command == "history":
+        print("Current session history:")
         print(calculator.history_text())
         return "handled"
     if command == "clear":
-        calculator.clear()
-        print("History cleared.")
+        try:
+            removed_count = calculator.clear()
+        except CalculatorError as error:
+            print(f"Clear failed: {error}")
+        else:
+            print(
+                "Calculator reset: cleared current-session history and undo/redo "
+                f"state ({removed_count} entr{'y' if removed_count == 1 else 'ies'} removed)."
+            )
         return "handled"
     if command == "undo":
-        print("Undid last change." if calculator.undo() else "Nothing to undo.")
+        entries = calculator.history_entries()
+        try:
+            undone = calculator.undo()
+        except CalculatorError as error:
+            print(f"Undo failed: {error}")
+        else:
+            if undone:
+                print(
+                    f"Undo: removed {entries[-1]['first_operand']} "
+                    f"{entries[-1]['operator']} {entries[-1]['second_operand']} "
+                    f"= {entries[-1]['result']} from history."
+                )
+            else:
+                print("Undo: no calculation to remove.")
         return "handled"
     if command == "redo":
-        print("Redid last change." if calculator.redo() else "Nothing to redo.")
+        try:
+            redone = calculator.redo()
+        except CalculatorError as error:
+            print(f"Redo failed: {error}")
+        else:
+            if redone:
+                entry = calculator.history_entries()[-1]
+                print(
+                    f"Redo: restored {entry['first_operand']} {entry['operator']} "
+                    f"{entry['second_operand']} = {entry['result']} to history."
+                )
+            else:
+                print("Redo: no undone calculation to restore.")
         return "handled"
     if command == "save":
         try:
-            calculator.save()
+            session_file, entry_count = calculator.save()
         except CalculatorError as error:
-            print(f"Error: {error}")
+            print(f"Save failed: {error}")
         else:
-            print("History saved.")
+            print(f"Saved {entry_count} calculation(s) to {session_file}.")
         return "handled"
     if command == "load":
         try:
-            calculator.load()
+            entries = calculator.saved_entries()
         except CalculatorError as error:
-            print(f"Error: {error}")
+            print(f"Load failed: {error}")
+            return "handled"
+        if not entries:
+            print("Load: no calculations found in previous session CSV files.")
+            return "handled"
+
+        print("Saved calculations from previous sessions:")
+        for entry_number, entry in enumerate(entries, start=1):
+            print(
+                f"[{entry_number}] {entry['first_operand']} {entry['operator']} "
+                f"{entry['second_operand']} = {entry['result']} "
+                f"({entry['_session_file'].name})"
+            )
+        selection = _read_input("Enter an entry number to load, or 'cancel': ")
+        if selection is None:
+            return "exit"
+        if normalize_command(selection) == "cancel":
+            print("Load cancelled; current history is unchanged.")
+            return "handled"
+        try:
+            entry_number = int(selection)
+        except ValueError:
+            print("Load failed: Choose a listed saved-entry number.")
+            return "handled"
+        try:
+            calculation = calculator.load_entry(entry_number)
+        except (ValueError, CalculatorError) as error:
+            print(f"Load failed: {error}")
         else:
-            print("History loaded.")
+            print(f"Loaded calculation into this session: {calculation}.")
         return "handled"
     return None
 

@@ -175,6 +175,29 @@ def test_history_restore_rows_auto_saves(tmp_path):
     assert history_file.exists()
 
 
+def test_history_saved_entries_reject_invalid_archive_columns(tmp_path):
+    pd.DataFrame({"unexpected": [1]}).to_csv(
+        tmp_path / "history_previous.csv", index=False
+    )
+    history = CalculationHistory(tmp_path / "history_current.csv", auto_save=False)
+
+    with pytest.raises(HistoryError, match="invalid column layout"):
+        history.get_saved_entries(tmp_path / "history.csv")
+
+
+def test_history_saved_entries_wrap_csv_read_errors(tmp_path, monkeypatch):
+    archive_file = tmp_path / "history_previous.csv"
+    archive_file.write_text("first_operand,operator,second_operand,result\n", encoding="utf-8")
+    history = CalculationHistory(tmp_path / "history_current.csv", auto_save=False)
+
+    def fail_read(_path):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(pd, "read_csv", fail_read)
+    with pytest.raises(HistoryError, match="Could not read saved history"):
+        history.get_saved_entries(tmp_path / "history.csv")
+
+
 def test_history_csv_has_explicit_operand_columns(tmp_path):
     history_file = tmp_path / "history.csv"
     history = CalculationHistory(history_file)
