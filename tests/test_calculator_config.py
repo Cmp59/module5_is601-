@@ -43,3 +43,39 @@ def test_config_rejects_invalid_auto_save_value(monkeypatch):
 
     with pytest.raises(ConfigurationError, match="must be 'true' or 'false'"):
         CalculatorConfig.load(env_file=Path("missing-test-env"))
+
+
+def test_config_rejects_directory_as_history_prefix(monkeypatch, tmp_path):
+    monkeypatch.setenv("CALCULATOR_HISTORY_FILE", str(tmp_path))
+
+    with pytest.raises(ConfigurationError, match="not a directory"):
+        CalculatorConfig.load(env_file=Path("missing-test-env"))
+
+
+def test_config_rejects_file_as_history_parent(monkeypatch, tmp_path):
+    parent_file = tmp_path / "not-a-directory"
+    parent_file.write_text("x", encoding="utf-8")
+    monkeypatch.setenv(
+        "CALCULATOR_HISTORY_FILE", str(parent_file / "history.csv")
+    )
+
+    with pytest.raises(ConfigurationError, match="parent.*must be a directory"):
+        CalculatorConfig.load(env_file=Path("missing-test-env"))
+
+
+def test_config_rejects_root_without_filename(monkeypatch):
+    monkeypatch.setenv("CALCULATOR_HISTORY_FILE", str(Path("/").anchor))
+
+    with pytest.raises(ConfigurationError, match="must include a filename"):
+        CalculatorConfig.load(env_file=Path("missing-test-env"))
+
+
+def test_config_wraps_history_path_os_errors(monkeypatch):
+    monkeypatch.setenv("CALCULATOR_HISTORY_FILE", "history.csv")
+
+    def fail_exists(_path):
+        raise OSError("cannot inspect path")
+
+    monkeypatch.setattr(Path, "exists", fail_exists)
+    with pytest.raises(ConfigurationError, match="Invalid CALCULATOR_HISTORY_FILE"):
+        CalculatorConfig.load(env_file=Path("missing-test-env"))
