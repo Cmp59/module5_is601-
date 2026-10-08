@@ -1,8 +1,6 @@
 """Calculation objects and the factory that creates them."""
 
-from typing import Callable
-
-from .operations import Operations
+from .operations import OperationFactory, OperationStrategy
 
 
 class Calculation:
@@ -13,16 +11,18 @@ class Calculation:
         first_number: float,
         second_number: float,
         operator_symbol: str,
-        operation: Callable[[float, float], float],
+        operation: OperationStrategy,
     ):
         self.first_number = first_number
         self.second_number = second_number
         self.operator_symbol = operator_symbol
         self.operation = operation
+        self.result = None
 
     def perform(self) -> float:
         """Run the stored operation and return its result."""
-        return self.operation(self.first_number, self.second_number)
+        self.result = self.operation.execute(self.first_number, self.second_number)
+        return self.result
 
     def __str__(self) -> str:
         """Format the calculation and its result for display."""
@@ -36,28 +36,15 @@ class Calculation:
 class CalculationFactory:
     """Select and create calculations based on an operator symbol."""
 
-    _OPERATIONS = {
-        "+": Operations.addition,
-        "-": Operations.subtraction,
-        "*": Operations.multiplication,
-        "/": Operations.division,
-        "^": Operations.power,
-        "root": Operations.root,
-    }
-
     @classmethod
     def supports(cls, operator: str) -> bool:
         """Return whether the operator is supported."""
-        return operator in cls._OPERATIONS
+        return OperationFactory.supports(operator)
 
     @classmethod
     def create(
         cls, operator: str, first_number: float, second_number: float
     ) -> Calculation:
         """Create a calculation instance, raising for unknown operators."""
-        try:
-            operation = cls._OPERATIONS[operator]
-        except KeyError as error:
-            raise ValueError(f"Unsupported operation: {operator}") from error
-
+        operation = OperationFactory.create(operator)
         return Calculation(first_number, second_number, operator, operation)

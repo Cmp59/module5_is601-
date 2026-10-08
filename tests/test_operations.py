@@ -1,6 +1,7 @@
 import pytest
 
-from app.operations import Operations
+from app.exceptions import InvalidOperationError
+from app.operations import OperationFactory, Operations
 
 
 @pytest.mark.parametrize(
@@ -52,3 +53,29 @@ def test_root_rejects_zero_degree():
 def test_root_rejects_non_real_negative_roots(degree):
     with pytest.raises(ValueError, match="negative number requires an odd"):
         Operations.root(-9, degree)
+
+
+@pytest.mark.parametrize(
+    "operator, first_number, second_number, expected_result",
+    [
+        ("+", 2, 3, 5),
+        ("-", 5, 3, 2),
+        ("*", 2, 3, 6),
+        ("/", 6, 3, 2),
+        ("^", 2, 3, 8),
+        ("root", 27, 3, 3),
+    ],
+)
+def test_operation_factory_creates_executable_strategies(
+    operator, first_number, second_number, expected_result
+):
+    strategy = OperationFactory.create(operator)
+
+    assert strategy.execute(first_number, second_number) == expected_result
+    assert OperationFactory.supports(operator)
+
+
+def test_operation_factory_rejects_unknown_strategy():
+    assert not OperationFactory.supports("%")
+    with pytest.raises(InvalidOperationError, match="Unsupported operation"):
+        OperationFactory.create("%")

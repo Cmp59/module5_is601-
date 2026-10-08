@@ -4,6 +4,8 @@ import sys
 
 import pytest
 
+from app.calculator import Calculator
+from app.exceptions import ConfigurationError
 from app.calculator_repl import calculator
 
 
@@ -37,7 +39,7 @@ def test_calculator_quits_at_first_number(quit_command, capsys):
 
     output = capsys.readouterr().out
     assert "Enter exit or q at any prompt to quit" in output
-    assert "Commands: help, history, exit (q also exits)." in output
+    assert "Commands: help, history, clear, undo, redo, save, load, exit" in output
 
 
 @pytest.mark.parametrize("quit_command", ["q", "exit"])
@@ -63,14 +65,14 @@ def test_calculator_rejects_non_numeric_first_number(capsys):
     with patch("builtins.input", side_effect=["abc", "+", "2", "q"]):
         calculator()
 
-    assert "could not convert string to float" in capsys.readouterr().out
+    assert "Invalid number: abc" in capsys.readouterr().out
 
 
 def test_calculator_rejects_non_numeric_second_number(capsys):
     with patch("builtins.input", side_effect=["2", "+", "abc", "q"]):
         calculator()
 
-    assert "could not convert string to float" in capsys.readouterr().out
+    assert "Invalid number: abc" in capsys.readouterr().out
 
 
 def test_calculator_handles_division_by_zero(capsys):
@@ -92,7 +94,7 @@ def test_calculator_help_command(capsys):
         calculator()
 
     output = capsys.readouterr().out
-    assert "Commands: help, history, exit" in output
+    assert "Commands: help, history, clear, undo, redo, save, load, exit" in output
     assert "Operations: +, -, *, /, ^, root." in output
 
 
@@ -100,7 +102,7 @@ def test_calculator_handles_help_at_operator_prompt(capsys):
     with patch("builtins.input", side_effect=["2", "help", "exit"]):
         calculator()
 
-    assert "Commands: help, history, exit" in capsys.readouterr().out
+    assert "Commands: help, history, clear, undo, redo, save, load, exit" in capsys.readouterr().out
 
 
 def test_calculator_handles_history_at_second_number_prompt(capsys):
@@ -140,3 +142,72 @@ def test_calculator_module_starts_repl(monkeypatch):
     monkeypatch.delitem(sys.modules, "app.calculator_repl", raising=False)
     with patch("builtins.input", return_value="q"):
         runpy.run_module("app.calculator_repl", run_name="__main__")
+
+
+@pytest.mark.parametrize("prompt_values", [["clear", "exit"], ["2", "clear", "exit"]])
+def test_calculator_clear_command(prompt_values, capsys):
+    with patch("builtins.input", side_effect=prompt_values):
+        calculator()
+
+    assert "History cleared." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "command, expected",
+    [("undo", "Nothing to undo."), ("redo", "Nothing to redo."),
+     ("save", "History saved."), ("load", "History loaded.")],
+)
+def test_calculator_state_commands(command, expected, capsys):
+    with patch("builtins.input", side_effect=[command, "exit"]):
+        calculator()
+
+    assert expected in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("exception_type", [EOFError, KeyboardInterrupt])
+@pytest.mark.parametrize(
+    "input_before_interrupt",
+    [[], ["2"], ["2", "+"]],
+)
+def test_calculator_exits_gracefully_on_input_interruption(
+    exception_type, input_before_interrupt, capsys
+):
+    with patch(
+        "builtins.input",
+        side_effect=[*input_before_interrupt, exception_type()],
+    ):
+        calculator()
+
+    assert "Input interrupted. Exiting calculator." in capsys.readouterr().out
+
+
+def test_calculator_reports_configuration_error(monkeypatch, capsys):
+    monkeypatch.setenv("CALCULATOR_AUTO_SAVE", "invalid")
+
+    calculator()
+
+    assert "Calculator configuration/history error" in capsys.readouterr().out
+
+
+def test_calculator_reports_save_errors(monkeypatch, capsys):
+    monkeypatch.setattr(
+        Calculator,
+        "save",
+        lambda self: (_ for _ in ()).throw(ConfigurationError("save failed")),
+    )
+    with patch("builtins.input", side_effect=["save", "exit"]):
+        calculator()
+
+    assert "Error: save failed" in capsys.readouterr().out
+
+
+def test_calculator_reports_load_errors(monkeypatch, capsys):
+    monkeypatch.setattr(
+        Calculator,
+        "load",
+        lambda self: (_ for _ in ()).throw(ConfigurationError("load failed")),
+    )
+    with patch("builtins.input", side_effect=["load", "exit"]):
+        calculator()
+
+    assert "Error: load failed" in capsys.readouterr().out

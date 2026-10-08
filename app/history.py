@@ -1,30 +1,129 @@
-"""Manage calculations performed during one calculator session."""
+"""Observer-based, pandas-backed calculation history with CSV persistence."""
 
+from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Tuple
 
+import pandas as pd
+
 from .calculation import Calculation
+from .exceptions import HistoryError
+
+HISTORY_COLUMNS = ["first_number", "operator", "second_number", "result"]
 
 
-class CalculationHistory:
-    """Store, retrieve, and format completed calculations."""
+class CalculationObserver(ABC):
+    """Observer interface for completed calculations."""
+
+    @abstractmethod
+    def update(self, calculation: Calculation) -> None:
+        """React to a completed calculation event."""
+
+
+class CalculationSubject:
+    """Publish completed-calculation events to attached observers."""
 
     def __init__(self):
-        self._calculations = []
+        self._observers = []
+
+    def attach(self, observer: CalculationObserver) -> None:
+        """Subscribe an observer once."""
+        if observer not in self._observers:
+            self._observers.append(observer)
+
+    def detach(self, observer: CalculationObserver) -> None:
+        """Unsubscribe an observer if currently attached."""
+        if observer in self._observers:
+            self._observers.remove(observer)
+
+    def notify(self, calculation: Calculation) -> None:
+        """Notify a stable snapshot of observers about a calculation."""
+        for observer in tuple(self._observers):
+            observer.update(calculation)
+
+
+class CalculationHistory(CalculationObserver):
+    """Observe calculation events and persist them in a pandas DataFrame."""
+
+    def __init__(self, history_file: Path, auto_save: bool = True):
+        self.history_file = Path(history_file)
+        self.auto_save = auto_save
+        self._data = pd.DataFrame(columns=HISTORY_COLUMNS)
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        """Return a defensive copy of the history table."""
+        return self._data.copy(deep=True)
+
+    def update(self, calculation: Calculation) -> None:
+        """Append a calculation event and auto-save when configured."""
+        if calculation.result is None:
+            raise HistoryError("Cannot record a calculation before it is performed.")
+        row = {
+            "first_number": calculation.first_number,
+            "operator": calculation.operator_symbol,
+            "second_number": calculation.second_number,
+            "result": calculation.result,
+        }
+        self._data.loc[len(self._data)] = row
+        if self.auto_save:
+            self.save()
 
     def add(self, calculation: Calculation) -> None:
-        """Add a completed calculation to history."""
-        self._calculations.append(calculation)
+        """Compatibility method that records through the observer interface."""
+        self.update(calculation)
 
-    def get_all(self) -> Tuple[Calculation, ...]:
-        """Return a read-only snapshot of the stored calculations."""
-        return tuple(self._calculations)
+    def get_all(self) -> Tuple[dict, ...]:
+        """Return history rows as immutable snapshots of dictionaries."""
+        return tuple(self._data.to_dict(orient="records"))
 
     def format_entries(self) -> str:
         """Format history entries for display in the REPL."""
-        if not self._calculations:
+        if self._data.empty:
             return "No calculations yet."
 
-        return "\n".join(
-            f"{index}. {calculation}"
-            for index, calculation in enumerate(self._calculations, start=1)
-        )
+        lines = []
+        for index, row in self._data.iterrows():
+            lines.append(
+                f"{index + 1}. {row['first_number']} {row['operator']} "
+                f"{row['second_number']} = {row['result']}"
+            )
+        return "\n".join(lines)
+
+    def clear(self) -> None:
+        """Remove all in-memory history and update persistent history."""
+        self._data = pd.DataFrame(columns=HISTORY_COLUMNS)
+        if self.auto_save:
+            self.save()
+
+    def save(self) -> None:
+        """Persist the current history DataFrame to CSV."""
+        try:
+            self.history_file.parent.mkdir(parents=True, exist_ok=True)
+            self._data.to_csv(self.history_file, index=False)
+        except OSError as error:
+            raise HistoryError(f"Could not save history: {error}") from error
+
+    def load(self) -> None:
+        """Load existing CSV history, rejecting malformed columns."""
+        try:
+            loaded = pd.read_csv(self.history_file)
+        except FileNotFoundError:
+            self._data = pd.DataFrame(columns=HISTORY_COLUMNS)
+            return
+        except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+            raise HistoryError(f"Could not load history: {error}") from error
+
+        if list(loaded.columns) != HISTORY_COLUMNS:
+            raise HistoryError("History CSV has an invalid column layout.")
+        self._data = loaded
+
+    def snapshot_rows(self):
+        """Return raw row values for memento snapshots."""
+        return tuple(self._data.itertuples(index=False, name=None))
+
+    def restore_rows(self, rows) -> None:
+        """Restore history from an immutable snapshot of rows."""
+        self._data = pd.DataFrame(rows, columns=HISTORY_COLUMNS)
+        if self.auto_save:
+            self.save()

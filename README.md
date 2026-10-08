@@ -1,4 +1,4 @@
-# Module 4 Calculator
+# Module 5 Enhanced Calculator
 
 A command-line calculator built with Python and object-oriented design.
 
@@ -24,7 +24,9 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 python main.py
 ```
 
-The calculator supports addition (`+`), subtraction (`-`), multiplication (`*`), division (`/`), exponentiation (`^`), and nth roots (`root`). For `root`, enter the radicand first and the root degree second. Enter `help` to view commands and operations, `history` to view completed calculations, or `exit` to quit. These commands are available at any prompt; `q` also quits. The `CalculationFactory` creates a calculation instance for the selected operator, and completed instances are kept in session history.
+The calculator supports addition (`+`), subtraction (`-`), multiplication (`*`), division (`/`), exponentiation (`^`), and nth roots (`root`). For `root`, enter the radicand first and the root degree second. Available commands are `help`, `history`, `clear`, `undo`, `redo`, `save`, `load`, and `exit` (`q` also exits). History is kept in a pandas DataFrame, loaded from CSV on startup, and auto-saved after changes by default.
+
+Copy `.env.example` to `.env` to configure the history path and auto-save behavior. `CALCULATOR_HISTORY_FILE` selects the CSV file; `CALCULATOR_AUTO_SAVE` accepts `true` or `false`.
 
 ## Run Tests
 
@@ -44,9 +46,19 @@ python -m pytest --cov-fail-under=100
 
 - `app/calculator_repl.py`: Interactive calculator REPL
 - `app/calculation.py`: Calculation instances and `CalculationFactory`
-- `app/history.py`: Stores and displays session calculations
-- `app/operations.py`: Arithmetic operations
+- `app/operations.py`: Arithmetic strategies and `OperationFactory`
+- `app/history.py`: Observer-based pandas history and CSV persistence
+- `app/calculator.py`: Facade coordinating calculation, history, and state
+- `app/calculator_memento.py`: Immutable state snapshots for undo and redo
+- `app/calculator_config.py`: Validated dotenv/environment configuration
+- `app/input_validators.py`: REPL command and numeric input helpers
+- `app/exceptions.py`: Calculator-specific exceptions
 - `tests/test_operations.py`: Parameterized arithmetic tests
 - `tests/test_calculations.py`: Calculation, factory, and history tests
 - `tests/test_calculator_repl.py`: REPL tests
+- `tests/test_calculator_config.py`: Configuration tests
+- `tests/test_calculator_memento.py`: Memento tests
+- `tests/test_exceptions.py`: Exception hierarchy tests
+- `tests/test_history.py`: Observer and CSV history tests
+- `tests/test_input_validators.py`: Input validation tests
 - `.github/workflows/ci.yml`: GitHub Actions configuration

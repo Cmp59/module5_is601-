@@ -40,20 +40,32 @@ def test_factory_reports_unsupported_operator():
     assert not CalculationFactory.supports("%")
 
 
-def test_history_starts_empty():
-    history = CalculationHistory()
+def test_history_starts_empty(tmp_path):
+    history = CalculationHistory(tmp_path / "history.csv")
 
     assert history.get_all() == ()
     assert history.format_entries() == "No calculations yet."
 
 
-def test_history_stores_and_formats_calculations():
-    history = CalculationHistory()
+def test_history_stores_and_formats_calculations(tmp_path):
+    history = CalculationHistory(tmp_path / "history.csv", auto_save=False)
     first_calculation = CalculationFactory.create("+", 2, 3)
     second_calculation = CalculationFactory.create("*", 4, 5)
+    first_calculation.perform()
+    second_calculation.perform()
 
     history.add(first_calculation)
     history.add(second_calculation)
 
-    assert history.get_all() == (first_calculation, second_calculation)
+    assert history.get_all() == (
+        {"first_number": 2, "operator": "+", "second_number": 3, "result": 5},
+        {"first_number": 4, "operator": "*", "second_number": 5, "result": 20},
+    )
     assert history.format_entries() == "1. 2 + 3 = 5\n2. 4 * 5 = 20"
+
+
+def test_calculation_string_representation():
+    calculation = CalculationFactory.create("+", 2, 3)
+    calculation.perform()
+
+    assert str(calculation) == "2 + 3 = 5"
