@@ -1,11 +1,13 @@
 from unittest.mock import patch
 import runpy
 import sys
+from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from app.calculator import Calculator
-from app.exceptions import ConfigurationError
+from app.exceptions import ConfigurationError, HistoryError
 from app.calculator_repl import calculator
 
 
@@ -144,6 +146,31 @@ def test_calculator_module_starts_repl(monkeypatch):
         runpy.run_module("app.calculator_repl", run_name="__main__")
 
 
+def test_repl_saves_session_csv_when_exiting(capsys, monkeypatch, tmp_path):
+    monkeypatch.setenv("CALCULATOR_HISTORY_FILE", str(tmp_path / "history.csv"))
+    with patch("builtins.input", side_effect=["2", "+", "3", "exit"]):
+        calculator()
+
+    output = capsys.readouterr().out
+    assert "Result: 5.0" in output
+    assert "Session history saved to:" in output
+    csv_files = list(tmp_path.glob("history_*.csv"))
+    assert csv_files
+    saved = pd.read_csv(csv_files[-1])
+    assert list(saved.columns) == [
+        "first_operand",
+        "operator",
+        "second_operand",
+        "result",
+    ]
+    assert saved.iloc[-1].to_dict() == {
+        "first_operand": 2.0,
+        "operator": "+",
+        "second_operand": 3.0,
+        "result": 5.0,
+    }
+
+
 @pytest.mark.parametrize("prompt_values", [["clear", "exit"], ["2", "clear", "exit"]])
 def test_calculator_clear_command(prompt_values, capsys):
     with patch("builtins.input", side_effect=prompt_values):
@@ -211,3 +238,15 @@ def test_calculator_reports_load_errors(monkeypatch, capsys):
         calculator()
 
     assert "Error: load failed" in capsys.readouterr().out
+
+
+def test_calculator_reports_session_save_error(monkeypatch, capsys):
+    monkeypatch.setattr(
+        Calculator,
+        "close",
+        lambda self: (_ for _ in ()).throw(HistoryError("session save failed")),
+    )
+    with patch("builtins.input", return_value="exit"):
+        calculator()
+
+    assert "Error saving session history: session save failed" in capsys.readouterr().out

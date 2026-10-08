@@ -2,8 +2,10 @@
 
 import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
 from dotenv import load_dotenv
 
@@ -16,6 +18,12 @@ class CalculatorConfig:
 
     history_file: Path
     auto_save: bool
+
+    def new_session_history_file(self) -> Path:
+        """Return a unique CSV path for a new REPL session."""
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+        filename = f"{self.history_file.stem}_{timestamp}_{uuid4().hex[:8]}.csv"
+        return self.history_file.with_name(filename)
 
     @classmethod
     def load(cls, env_file: Optional[Path] = None):

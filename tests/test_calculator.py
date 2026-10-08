@@ -19,7 +19,7 @@ def test_calculator_facade_calculates_and_notifies_history(tmp_path):
 
     assert result == 5
     assert "2 + 3 = 5" in calculator.history_text()
-    assert (tmp_path / "history.csv").exists()
+    assert calculator.session_history_file.exists()
 
 
 def test_calculator_facade_rejects_unknown_operation(tmp_path):
@@ -65,20 +65,35 @@ def test_calculator_clear_is_undoable(tmp_path):
 
 
 def test_calculator_saves_and_loads_history(tmp_path):
-    history_file = tmp_path / "history.csv"
     calculator = make_calculator(tmp_path, auto_save=False)
     calculator.calculate("^", 2, 3)
     calculator.save()
     pd.DataFrame(
         [[9, "+", 1, 10]],
-        columns=["first_number", "operator", "second_number", "result"],
-    ).to_csv(history_file, index=False)
+        columns=["first_operand", "operator", "second_operand", "result"],
+    ).to_csv(calculator.session_history_file, index=False)
 
     calculator.load()
 
     assert "9 + 1 = 10" in calculator.history_text()
     assert calculator.undo() is True
     assert "2 ^ 3 = 8" in calculator.history_text()
+
+
+def test_each_calculator_session_uses_its_own_csv(tmp_path):
+    first_session = make_calculator(tmp_path)
+    first_session.calculate("+", 1, 2)
+    first_session.close()
+
+    second_session = make_calculator(tmp_path)
+    second_session.close()
+
+    assert first_session.session_history_file != second_session.session_history_file
+    assert first_session.session_history_file.exists()
+    assert second_session.session_history_file.exists()
+    assert "1 + 2 = 3" in first_session.history_text()
+    assert second_session.history_text() == "No calculations yet."
+    assert len(list(tmp_path.glob("history_*.csv"))) == 2
 
 
 def test_calculator_load_missing_file_keeps_empty_history(tmp_path):

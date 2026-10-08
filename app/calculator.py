@@ -11,14 +11,16 @@ class Calculator:
 
     def __init__(self, config=None):
         self.config = config or CalculatorConfig.load()
+        self.session_history_file = self.config.new_session_history_file()
         self.history = CalculationHistory(
-            self.config.history_file, auto_save=self.config.auto_save
+            self.session_history_file, auto_save=self.config.auto_save
         )
         self._events = CalculationSubject()
         self._events.attach(self.history)
         self._undo_stack = []
         self._redo_stack = []
         self.history.load()
+        self.history.save()
 
     def supports(self, operator):
         """Return whether an operation symbol is supported."""
@@ -64,6 +66,11 @@ class Calculator:
     def save(self):
         """Persist history using its observer-managed DataFrame."""
         self.history.save()
+
+    def close(self):
+        """Save this session's CSV and return its path."""
+        self.history.save()
+        return self.session_history_file
 
     def load(self):
         """Load history as an undoable state change."""

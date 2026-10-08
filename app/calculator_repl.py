@@ -116,6 +116,13 @@ def calculator():
 
         print(f"Result: {result}")
 
+    try:
+        session_file = calculator_app.close()
+    except CalculatorError as error:
+        print(f"Error saving session history: {error}")
+    else:
+        print(f"Session history saved to: {session_file}")
+
 
 if __name__ == "__main__":
     calculator()

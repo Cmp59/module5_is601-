@@ -9,7 +9,7 @@ import pandas as pd
 from .calculation import Calculation
 from .exceptions import HistoryError
 
-HISTORY_COLUMNS = ["first_number", "operator", "second_number", "result"]
+HISTORY_COLUMNS = ["first_operand", "operator", "second_operand", "result"]
 
 
 class CalculationObserver(ABC):
@@ -60,9 +60,9 @@ class CalculationHistory(CalculationObserver):
         if calculation.result is None:
             raise HistoryError("Cannot record a calculation before it is performed.")
         row = {
-            "first_number": calculation.first_number,
+            "first_operand": calculation.first_number,
             "operator": calculation.operator_symbol,
-            "second_number": calculation.second_number,
+            "second_operand": calculation.second_number,
             "result": calculation.result,
         }
         self._data.loc[len(self._data)] = row
@@ -85,8 +85,8 @@ class CalculationHistory(CalculationObserver):
         lines = []
         for index, row in self._data.iterrows():
             lines.append(
-                f"{index + 1}. {row['first_number']} {row['operator']} "
-                f"{row['second_number']} = {row['result']}"
+                f"{index + 1}. {row['first_operand']} {row['operator']} "
+                f"{row['second_operand']} = {row['result']}"
             )
         return "\n".join(lines)
 

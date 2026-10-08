@@ -24,9 +24,9 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 python main.py
 ```
 
-The calculator supports addition (`+`), subtraction (`-`), multiplication (`*`), division (`/`), exponentiation (`^`), and nth roots (`root`). For `root`, enter the radicand first and the root degree second. Available commands are `help`, `history`, `clear`, `undo`, `redo`, `save`, `load`, and `exit` (`q` also exits). History is kept in a pandas DataFrame, loaded from CSV on startup, and auto-saved after changes by default.
+The calculator supports addition (`+`), subtraction (`-`), multiplication (`*`), division (`/`), exponentiation (`^`), and nth roots (`root`). For `root`, enter the radicand first and the root degree second. Available commands are `help`, `history`, `clear`, `undo`, `redo`, `save`, `load`, and `exit` (`q` also exits). Each REPL session starts with fresh history and writes to its own uniquely named CSV file with `first_operand`, `operator`, `second_operand`, and `result` columns. History is held in a pandas DataFrame and auto-saved after changes and on exit; the file path is printed when the REPL ends.
 
-Copy `.env.example` to `.env` to configure the history path and auto-save behavior. `CALCULATOR_HISTORY_FILE` selects the CSV file; `CALCULATOR_AUTO_SAVE` accepts `true` or `false`.
+Copy `.env.example` to `.env` to configure the history filename prefix and auto-save behavior. `CALCULATOR_HISTORY_FILE` sets the prefix/location used for session CSV files; `CALCULATOR_AUTO_SAVE` accepts `true` or `false`.
 
 ## Run Tests
 

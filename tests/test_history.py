@@ -53,7 +53,7 @@ def test_history_observes_and_auto_saves_calculations(tmp_path):
     subject.notify(calculation)
 
     assert history.dataframe.to_dict(orient="records") == [
-        {"first_number": 2.0, "operator": "+", "second_number": 3.0, "result": 5.0}
+        {"first_operand": 2, "operator": "+", "second_operand": 3, "result": 5}
     ]
     assert history_file.exists()
 
@@ -173,3 +173,18 @@ def test_history_restore_rows_auto_saves(tmp_path):
     history.restore_rows([(1, "*", 4, 4)])
 
     assert history_file.exists()
+
+
+def test_history_csv_has_explicit_operand_columns(tmp_path):
+    history_file = tmp_path / "history.csv"
+    history = CalculationHistory(history_file)
+    history.add(performed_calculation())
+
+    loaded = pd.read_csv(history_file)
+
+    assert list(loaded.columns) == [
+        "first_operand",
+        "operator",
+        "second_operand",
+        "result",
+    ]

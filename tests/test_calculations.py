@@ -58,8 +58,8 @@ def test_history_stores_and_formats_calculations(tmp_path):
     history.add(second_calculation)
 
     assert history.get_all() == (
-        {"first_number": 2, "operator": "+", "second_number": 3, "result": 5},
-        {"first_number": 4, "operator": "*", "second_number": 5, "result": 20},
+        {"first_operand": 2, "operator": "+", "second_operand": 3, "result": 5},
+        {"first_operand": 4, "operator": "*", "second_operand": 5, "result": 20},
     )
     assert history.format_entries() == "1. 2 + 3 = 5\n2. 4 * 5 = 20"
 
