@@ -22,6 +22,14 @@ from app.operations import Operations
         (Operations.division, -6, 3, -2),
         (Operations.division, 0, 4, 0),
         (Operations.division, 7.5, 2.5, 3.0),
+        (Operations.power, 2, 3, 8),
+        (Operations.power, 2, -2, 0.25),
+        (Operations.power, -2, 3, -8),
+        (Operations.power, 2, 0, 1),
+        (Operations.root, 9, 2, 3),
+        (Operations.root, 27, 3, 3),
+        (Operations.root, -8, 3, -2),
+        (Operations.root, 0, 2, 0),
     ],
 )
 def test_operations_with_numeric_values(
@@ -33,3 +41,14 @@ def test_operations_with_numeric_values(
 def test_division_by_zero():
     with pytest.raises(ValueError, match="divide by zero"):
         Operations.division(6, 0)
+
+
+def test_root_rejects_zero_degree():
+    with pytest.raises(ValueError, match="Root degree cannot be zero"):
+        Operations.root(9, 0)
+
+
+@pytest.mark.parametrize("degree", [2, 2.5])
+def test_root_rejects_non_real_negative_roots(degree):
+    with pytest.raises(ValueError, match="negative number requires an odd"):
+        Operations.root(-9, degree)

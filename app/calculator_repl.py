@@ -5,8 +5,8 @@ from .history import CalculationHistory
 
 HELP_TEXT = (
     "Commands: help, history, exit (q also exits).\n"
-    "Operations: +, -, *, /.\n"
-    "Enter two numbers and an operation to calculate."
+    "Operations: +, -, *, /, ^, root.\n"
+    "For root, enter the radicand first and the root degree second."
 )
 
 
@@ -40,14 +40,14 @@ def calculator():
         if command_action == "handled":
             continue
 
-        operator = input("Operation (+, -, *, /): ").strip()
+        operator = input("Operation (+, -, *, /, ^, root): ").strip().lower()
         command_action = _handle_command(operator, history)
         if command_action == "exit":
             break
         if command_action == "handled":
             continue
         if not CalculationFactory.supports(operator):
-            print("Please choose +, -, *, or /.")
+            print("Please choose +, -, *, /, ^, or root.")
             continue
 
         second_input = input("Second number: ").strip()

@@ -41,6 +41,8 @@ class CalculationFactory:
         "-": Operations.subtraction,
         "*": Operations.multiplication,
         "/": Operations.division,
+        "^": Operations.power,
+        "root": Operations.root,
     }
 
     @classmethod

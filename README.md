@@ -24,7 +24,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 python main.py
 ```
 
-The calculator supports addition (`+`), subtraction (`-`), multiplication (`*`), and division (`/`). Enter `help` to view commands and operations, `history` to view completed calculations, or `exit` to quit. These commands are available at any prompt; `q` also quits. The `CalculationFactory` creates a calculation instance for the selected operator, and completed instances are kept in session history.
+The calculator supports addition (`+`), subtraction (`-`), multiplication (`*`), division (`/`), exponentiation (`^`), and nth roots (`root`). For `root`, enter the radicand first and the root degree second. Enter `help` to view commands and operations, `history` to view completed calculations, or `exit` to quit. These commands are available at any prompt; `q` also quits. The `CalculationFactory` creates a calculation instance for the selected operator, and completed instances are kept in session history.
 
 ## Run Tests
 

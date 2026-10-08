@@ -11,6 +11,8 @@ from app.history import CalculationHistory
         ("-", 5, 3, 2),
         ("*", 2, 3, 6),
         ("/", 6, 3, 2),
+        ("^", 2, 3, 8),
+        ("root", 27, 3, 3),
     ],
 )
 def test_factory_creates_calculation_instances(
@@ -24,7 +26,7 @@ def test_factory_creates_calculation_instances(
     assert calculation.perform() == expected_result
 
 
-@pytest.mark.parametrize("operator", ["+", "-", "*", "/"])
+@pytest.mark.parametrize("operator", ["+", "-", "*", "/", "^", "root"])
 def test_factory_supports_basic_operators(operator):
     assert CalculationFactory.supports(operator)
 

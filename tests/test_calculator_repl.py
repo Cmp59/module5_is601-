@@ -14,6 +14,8 @@ from app.calculator_repl import calculator
         ("5", "-", "3", "Result: 2.0"),
         ("2", "*", "3", "Result: 6.0"),
         ("6", "/", "3", "Result: 2.0"),
+        ("2", "^", "3", "Result: 8.0"),
+        ("27", "root", "3", "Result: 3.0"),
     ],
 )
 def test_calculator_performs_operations(
@@ -54,7 +56,7 @@ def test_calculator_rejects_unsupported_operation(capsys):
     with patch("builtins.input", side_effect=["2", "%", "q"]):
         calculator()
 
-    assert "Please choose +, -, *, or /." in capsys.readouterr().out
+    assert "Please choose +, -, *, /, ^, or root." in capsys.readouterr().out
 
 
 def test_calculator_rejects_non_numeric_first_number(capsys):
@@ -91,7 +93,7 @@ def test_calculator_help_command(capsys):
 
     output = capsys.readouterr().out
     assert "Commands: help, history, exit" in output
-    assert "Operations: +, -, *, /." in output
+    assert "Operations: +, -, *, /, ^, root." in output
 
 
 def test_calculator_handles_help_at_operator_prompt(capsys):
@@ -125,6 +127,13 @@ def test_failed_calculation_is_not_added_to_history(capsys):
     output = capsys.readouterr().out
     assert "You cannot divide by zero." in output
     assert "No calculations yet." in output
+
+
+def test_calculator_reports_invalid_root(capsys):
+    with patch("builtins.input", side_effect=["-9", "root", "2", "exit"]):
+        calculator()
+
+    assert "negative number requires an odd integer root degree" in capsys.readouterr().out
 
 
 def test_calculator_module_starts_repl(monkeypatch):
