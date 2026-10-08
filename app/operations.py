@@ -1,8 +1,8 @@
-"""Basic calculator operations."""
+"""Basic arithmetic operations."""
 
 
 class Operations:
-    """Provide the calculator's basic arithmetic operations."""
+    """Provide the calculator's arithmetic operations."""
 
     @staticmethod
     def addition(first_number, second_number):

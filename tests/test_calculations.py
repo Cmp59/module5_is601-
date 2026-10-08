@@ -1,6 +1,7 @@
 import pytest
 
-from app.calculation import Calculation, CalculationFactory, CalculationHistory
+from app.calculation import Calculation, CalculationFactory
+from app.history import CalculationHistory
 
 
 @pytest.mark.parametrize(

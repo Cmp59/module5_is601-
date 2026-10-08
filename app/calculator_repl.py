@@ -1,6 +1,7 @@
-"""Command-line calculator."""
+"""Interactive command-line calculator."""
 
-from ..calculation import CalculationFactory, CalculationHistory
+from .calculation import CalculationFactory
+from .history import CalculationHistory
 
 HELP_TEXT = (
     "Commands: help, history, exit (q also exits).\n"

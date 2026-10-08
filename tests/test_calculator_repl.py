@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from app.calculator.calculator import calculator
+from app.calculator_repl import calculator
 
 
 @pytest.mark.parametrize(
@@ -128,6 +128,6 @@ def test_failed_calculation_is_not_added_to_history(capsys):
 
 
 def test_calculator_module_starts_repl(monkeypatch):
-    monkeypatch.delitem(sys.modules, "app.calculator.calculator", raising=False)
+    monkeypatch.delitem(sys.modules, "app.calculator_repl", raising=False)
     with patch("builtins.input", return_value="q"):
-        runpy.run_module("app.calculator.calculator", run_name="__main__")
+        runpy.run_module("app.calculator_repl", run_name="__main__")

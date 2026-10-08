@@ -42,12 +42,11 @@ python -m pytest --cov-fail-under=100
 
 ## Project Structure
 
-- `app/operation/operations.py`: `Operations` class and arithmetic methods
-- `app/calculator/calculator.py`: Interactive calculator REPL
-- `app/calculation/calculation.py`: Calculation instances and their `perform()` method
-- `app/calculation/calculation_factory.py`: Creates calculation instances by operator
-- `app/calculation/calculation_history.py`: Stores and displays session calculations
+- `app/calculator_repl.py`: Interactive calculator REPL
+- `app/calculation.py`: Calculation instances and `CalculationFactory`
+- `app/history.py`: Stores and displays session calculations
+- `app/operations.py`: Arithmetic operations
 - `tests/test_operations.py`: Parameterized arithmetic tests
 - `tests/test_calculations.py`: Calculation, factory, and history tests
-- `tests/test_calculator.py`: REPL tests
+- `tests/test_calculator_repl.py`: REPL tests
 - `.github/workflows/ci.yml`: GitHub Actions configuration
