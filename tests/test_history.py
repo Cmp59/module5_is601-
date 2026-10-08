@@ -182,7 +182,9 @@ def test_history_saved_entries_reject_invalid_archive_columns(tmp_path):
     history = CalculationHistory(tmp_path / "history_current.csv", auto_save=False)
 
     with pytest.raises(HistoryError, match="invalid column layout"):
-        history.get_saved_entries(tmp_path / "history.csv")
+        history.load_saved_sessions(
+            tmp_path / "history.csv", tmp_path / "history_current.csv"
+        )
 
 
 def test_history_saved_entries_wrap_csv_read_errors(tmp_path, monkeypatch):
@@ -195,7 +197,46 @@ def test_history_saved_entries_wrap_csv_read_errors(tmp_path, monkeypatch):
 
     monkeypatch.setattr(pd, "read_csv", fail_read)
     with pytest.raises(HistoryError, match="Could not read saved history"):
-        history.get_saved_entries(tmp_path / "history.csv")
+        history.load_saved_sessions(
+            tmp_path / "history.csv", tmp_path / "history_current.csv"
+        )
+
+
+def test_history_loads_archives_on_start_and_excludes_current_file(tmp_path):
+    archive_rows = [[7, "^", 2, 49]]
+    columns = ["first_operand", "operator", "second_operand", "result"]
+    pd.DataFrame(archive_rows, columns=columns).to_csv(
+        tmp_path / "history_previous.csv", index=False
+    )
+    pd.DataFrame([[1, "+", 1, 2]], columns=columns).to_csv(
+        tmp_path / "history_current.csv", index=False
+    )
+    history = CalculationHistory(tmp_path / "history_current.csv", auto_save=False)
+
+    history.load_saved_sessions(
+        tmp_path / "history.csv", tmp_path / "history_current.csv"
+    )
+
+    assert history.dataframe.empty
+    assert history.get_saved_entries() == (
+        {
+            "first_operand": 7,
+            "operator": "^",
+            "second_operand": 2,
+            "result": 49,
+            "_session_file": tmp_path / "history_previous.csv",
+        },
+    )
+
+
+def test_history_loads_empty_archive_when_no_session_files_exist(tmp_path):
+    history = CalculationHistory(tmp_path / "history_current.csv", auto_save=False)
+
+    history.load_saved_sessions(
+        tmp_path / "history.csv", tmp_path / "history_current.csv"
+    )
+
+    assert history.get_saved_entries() == ()
 
 
 def test_history_csv_has_explicit_operand_columns(tmp_path):

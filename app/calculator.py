@@ -22,6 +22,9 @@ class Calculator:
         self._redo_stack = []
         self.history.load()
         self.history.save()
+        self.history.load_saved_sessions(
+            self.config.history_file, self.session_history_file
+        )
 
     def supports(self, operator):
         """Return whether an operation symbol is supported."""
@@ -76,8 +79,8 @@ class Calculator:
         return self.session_history_file, len(self.history.get_all())
 
     def saved_entries(self):
-        """List calculations from previous session CSV files."""
-        return self.history.get_saved_entries(self.config.history_file)
+        """Return calculations loaded from previous sessions at startup."""
+        return self.history.get_saved_entries()
 
     def load_entry(self, entry_number):
         """Copy a selected archived calculation into the current session."""

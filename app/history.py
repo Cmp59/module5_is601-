@@ -49,6 +49,7 @@ class CalculationHistory(CalculationObserver):
         self.history_file = Path(history_file)
         self.auto_save = auto_save
         self._data = pd.DataFrame(columns=HISTORY_COLUMNS)
+        self._saved_data = pd.DataFrame(columns=HISTORY_COLUMNS + ["_session_file"])
 
     @property
     def dataframe(self) -> pd.DataFrame:
@@ -77,26 +78,36 @@ class CalculationHistory(CalculationObserver):
         """Return history rows as immutable snapshots of dictionaries."""
         return tuple(self._data.to_dict(orient="records"))
 
-    def get_saved_entries(self, filename_prefix: Path) -> Tuple[dict, ...]:
-        """Return entries from other session CSVs sharing the configured prefix."""
-        entries = []
+    def load_saved_sessions(
+        self, filename_prefix: Path, exclude_history_file: Path
+    ) -> None:
+        """Load earlier session CSVs into a separate archive DataFrame."""
+        session_frames = []
         pattern = f"{filename_prefix.stem}_*.csv"
         try:
             session_files = sorted(filename_prefix.parent.glob(pattern))
             for session_file in session_files:
-                if session_file == self.history_file:
+                if session_file == Path(exclude_history_file):
                     continue
                 saved_data = pd.read_csv(session_file)
                 if list(saved_data.columns) != HISTORY_COLUMNS:
                     raise HistoryError(
                         f"Saved history has an invalid column layout: {session_file}"
                     )
-                for row in saved_data.to_dict(orient="records"):
-                    row["_session_file"] = session_file
-                    entries.append(row)
+                saved_data["_session_file"] = session_file
+                session_frames.append(saved_data)
         except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError) as error:
             raise HistoryError(f"Could not read saved history: {error}") from error
-        return tuple(entries)
+        if session_frames:
+            self._saved_data = pd.concat(session_frames, ignore_index=True)
+        else:
+            self._saved_data = pd.DataFrame(
+                columns=HISTORY_COLUMNS + ["_session_file"]
+            )
+
+    def get_saved_entries(self) -> Tuple[dict, ...]:
+        """Return the archive entries loaded when this calculator started."""
+        return tuple(self._saved_data.to_dict(orient="records"))
 
     def format_entries(self) -> str:
         """Format history entries for display in the REPL."""
